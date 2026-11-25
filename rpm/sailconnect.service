@@ -1,0 +1,18 @@
+[Unit]
+Description=Sailconnect phone screen session controller
+After=dbus.service lipstick.service
+
+[Service]
+Type=dbus
+BusName=org.sailconnect.Control
+Environment=PYTHONPATH=/opt/sailconnect
+ExecStart=/usr/bin/python3 -m sailconnect.service
+RuntimeDirectory=sailconnect
+RuntimeDirectoryMode=0711
+UMask=0077
+KillMode=control-group
+TimeoutStopSec=15
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

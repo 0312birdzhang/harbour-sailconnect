@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="86" height="86" viewBox="0 0 86 86">
+  <title>Sailconnect</title>
+  <desc>A phone projecting its screen to a receiver, on a Sailfish OS circle-and-square base.</desc>
+  <defs>
+    <linearGradient id="background" gradientUnits="userSpaceOnUse" x1="0.7" y1="85.3" x2="85.3" y2="0.7">
+      <stop offset="0" stop-color="#17658c"/>
+      <stop offset="1" stop-color="#36c6c3"/>
+    </linearGradient>
+  </defs>
+  <!-- Opposite-corner base from the official Sailfish OS icon template. -->
+  <path fill="url(#background)" d="M84.277.3H43C19.417.3.3 19.418.3 43v41.277c0 .786.637 1.423 1.423 1.423H43c23.583 0 42.7-19.118 42.7-42.7V1.723C85.7.937 85.063.3 84.277.3Z"/>
+  <g fill="#fff">
+    <!-- The receiver frame stops behind the phone, leaving a clear gap. -->
+    <path d="M33 20h34a3 3 0 0 1 3 3v23a3 3 0 0 1-3 3H44v-4h22V24H34v4h-4v-5a3 3 0 0 1 3-3Z"/>
+    <path fill-rule="evenodd" d="M20 32h16a4 4 0 0 1 4 4v29a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4V36a4 4 0 0 1 4-4Zm0 4v29h16V36Z"/>
+    <rect x="24" y="58" width="8" height="3" rx="1.5"/>
+    <!-- Diagonal transfer arrow points from the phone into the receiver. -->
+    <path d="M44 39.2 53.2 30H46v-4h14v14h-4v-7.2L46.8 42Z"/>
+  </g>
+</svg>

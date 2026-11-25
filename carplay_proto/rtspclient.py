@@ -1,0 +1,136 @@
+"""Bounded plain RTSP transport for initial AirPlay discovery."""
+import errno
+import logging
+import socket
+import threading
+import time
+
+
+class RTSPClient:
+    def __init__(self, sock):
+        self.sock, self.sequence, self.buffer = sock, 0, b''
+        # Session and feedback requests must not interleave their responses.
+        self.lock = threading.RLock()
+
+    def enable_encryption(self, keys):
+        from .controlcipher import ControlCipher
+        self.sock = EncryptedSocket(self.sock, ControlCipher(keys.read_key, keys.write_key), self.buffer)
+        self.buffer = b''
+
+    def request(self, method, path, body=b'', headers=None):
+        with self.lock:
+            return self._request(method, path, body, headers)
+
+    def _request(self, method, path, body=b'', headers=None):
+        # Retry receiving the SAME feedback response; never resend a request
+        # or advance CSeq after a receive timeout on the encrypted stream.
+        self.receive_deadline=time.monotonic()+20 if path=='/feedback' else None
+        self.sequence += 1
+        fields = {'CSeq': str(self.sequence), 'Content-Length': str(len(body)),
+                  'User-Agent': 'Sailconnect/0.1'}
+        fields.update(headers or {})
+        if any('\r' in str(v) or '\n' in str(v) for v in list(fields) + list(fields.values())):
+            raise ValueError('invalid RTSP header')
+        self.sock.sendall(('{} {} RTSP/1.0\r\n'.format(method, path) + ''.join(
+            '{}: {}\r\n'.format(k, v) for k, v in fields.items()) + '\r\n').encode('ascii') + body)
+        while b'\r\n\r\n' not in self.buffer:
+            if len(self.buffer) > 65536:
+                raise ValueError('oversized RTSP header')
+            self._receive()
+        head, self.buffer = self.buffer.split(b'\r\n\r\n', 1)
+        lines = head.decode('ascii').split('\r\n')
+        status = int(lines[0].split()[1])
+        response = {}
+        for line in lines[1:]:
+            key, value = line.split(':', 1)
+            key = key.lower()
+            if key in response:
+                raise ValueError('duplicate RTSP header')
+            response[key] = value.strip()
+        if response.get('cseq') != str(self.sequence):
+            raise ValueError('RTSP sequence mismatch')
+        size = int(response.get('content-length', '0'))
+        if not 0 <= size <= 4 * 1024 * 1024:
+            raise ValueError('oversized RTSP body')
+        while len(self.buffer) < size:
+            self._receive()
+        payload, self.buffer = self.buffer[:size], self.buffer[size:]
+        return status, response, payload
+
+    def _receive(self):
+        while True:
+            try:
+                data = self.sock.recv(16384)
+                break
+            except socket.timeout:
+                if self.receive_deadline is None or time.monotonic()>=self.receive_deadline:raise
+                print('RTSP feedback response delayed; retaining request CSeq={}'.format(self.sequence),flush=True)
+        if not data:
+            raise EOFError('RTSP peer closed')
+        self.buffer += data
+
+
+class EncryptedSocket:
+    def __init__(self, sock, cipher, initial=b''):
+        self.sock, self.cipher = sock, cipher
+        self.encrypted, self.plain = initial, b''
+
+    def sendall(self, data):
+        self.sock.sendall(self.cipher.encrypt(data))
+
+    def recv(self, size):
+        while not self.plain:
+            result = self.cipher.decrypt(self.encrypted)
+            self.encrypted = result.rest
+            self.plain += result.data
+            if self.plain:
+                break
+            data = self.sock.recv(16384)
+            if not data:
+                if self.encrypted:
+                    raise EOFError('truncated encrypted control frame')
+                return b''
+            self.encrypted += data
+        data, self.plain = self.plain[:size], self.plain[size:]
+        return data
+
+    def close(self):
+        self.sock.close()
+
+
+def connect(address, port, interface, timeout=5, bind_device=False, source_address_wait=0):
+    # A link-local IPv6 destination requires the Wi-Fi interface scope ID.
+    family = socket.AF_INET6 if ':' in address else socket.AF_INET
+    started = time.monotonic()
+    deadline = started + source_address_wait
+    attempts = 0
+    while True:
+        sock = socket.socket(family, socket.SOCK_STREAM)
+        attempts += 1
+        try:
+            sock.settimeout(timeout)
+            if bind_device:
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, interface.encode() + b'\0')
+            if family == socket.AF_INET6:
+                scope = interface or address.partition('%')[2]
+                scope_id = (int(scope) if scope.isdigit() else socket.if_nametoindex(scope)) if scope else 0
+                destination = (address.split('%')[0], port, 0, scope_id)
+            else:
+                destination = (address, port)
+            sock.connect(destination)
+            if attempts > 1:
+                logging.info('AirPlay IPv6 source address ready interface=%s attempts=%d elapsedMs=%.1f',
+                             interface, attempts, (time.monotonic() - started) * 1000)
+            return RTSPClient(sock)
+        except OSError as error:
+            sock.close()
+            remaining = deadline - time.monotonic()
+            if family != socket.AF_INET6 or error.errno != errno.EADDRNOTAVAIL or remaining <= 0:
+                raise
+            if attempts == 1:
+                logging.info('AirPlay IPv6 source address pending interface=%s waitSeconds=%s',
+                             interface, source_address_wait)
+            time.sleep(min(.2, remaining))
+        except BaseException:
+            sock.close()
+            raise

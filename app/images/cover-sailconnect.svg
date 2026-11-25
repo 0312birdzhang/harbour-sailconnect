@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="260" viewBox="0 0 360 260">
+  <title>Sailconnect cover illustration</title>
+  <desc>A phone projecting to a receiver, drawn as transparent monochrome Sailfish cover art.</desc>
+  <g fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <!-- The receiver sits behind the phone, with clear separation between outlines. -->
+    <path opacity=".28" d="M155 163h153c10 0 18-8 18-18V49c0-10-8-18-18-18H137c-10 0-18 8-18 18v24"/>
+    <path opacity=".28" d="M204 165v27m-26 0h65"/>
+    <!-- Unboxed, quiet screen detail leaves the theme visible through the artwork. -->
+    <path opacity=".12" d="M148 55h148v84H155"/>
+    <rect x="42" y="89" width="101" height="143" rx="13"/>
+    <path opacity=".2" d="M59 115h67v87H59Z"/>
+    <path d="M77 216h31" opacity=".65"/>
+    <!-- A single projection arrow carries the same visual vocabulary as the launcher. -->
+    <path d="m165 113 54-54m-36 0h36v36"/>
+    <!-- Two restrained signal arcs convey connection without extra UI symbols. -->
+    <path opacity=".4" d="M178 139c18 1 32-13 32-31"/>
+    <path opacity=".18" d="M178 159c29 1 53-23 53-51"/>
+  </g>
+</svg>

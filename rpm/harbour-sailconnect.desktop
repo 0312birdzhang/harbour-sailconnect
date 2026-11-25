@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Sailconnect
+Icon=harbour-sailconnect
+Exec=harbour-sailconnect
+
+[X-Sailjail]
+Sandboxing=Disabled
